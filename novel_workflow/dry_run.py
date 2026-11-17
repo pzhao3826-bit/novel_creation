@@ -96,7 +96,15 @@ def run(name):
         state.data["spec"] = "干跑测试"
         state.data["total_words"] = 9000
         state.save()
-        imagine.run(state)
+        # 无调研且未显式降级：必须拒绝发散
+        try:
+            imagine.run(state)
+            raise AssertionError("未调研且未降级时 imagine 应拒绝执行")
+        except SystemExit:
+            pass
+        imagine.run(state, no_research=True)
+        assert state.data["imagine"]["research"]["skipped"] is True
+        assert "未经市场调研" in (state.imagine_dir / "story_candidates.md").read_text(encoding="utf-8")
         assert state.data["story"]["title"] == "候选书2", "imagine 故事选择未生效"
         assert state.data["imagine"]["cast_choice"] == 0
         assert (state.imagine_dir / "story_candidates.md").exists()
@@ -119,7 +127,7 @@ def run(name):
         assert (state.final_dir / "report.md").exists(), "旧报告迁移失败"
         assert not (state.dir / f"{title}.md").exists() and not (state.dir / "05_final_report.md").exists()
         # 断点续跑：已完成阶段应全部跳过（含 imagine 重入）
-        imagine.run(state)
+        imagine.run(state, no_research=True)
         for stage in ("story", "characters", "outline", "chapters"):
             getattr(pipeline, f"stage_{stage}")(state)
         print("\nDRY-RUN PASS：imagine 候选发散与挑选、故事/人物设定、大纲（弧光/伏笔校验）、"

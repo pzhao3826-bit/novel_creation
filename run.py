@@ -22,6 +22,8 @@ def main():
     ap.add_argument("--stage", choices=["story", "characters", "outline", "chapters", "assemble"], help="只跑到指定阶段")
     ap.add_argument("--imagine", action="store_true", help="先发散故事/人物候选供挑选，选完继续正式管线")
     ap.add_argument("--imagine-only", action="store_true", help="只做候选发散与挑选，选完即停")
+    ap.add_argument("--no-research", action="store_true",
+                    help="显式跳过 imagine 前置调研规程（候选将标注未经市场调研）")
     ap.add_argument("--story-candidates", type=int, default=3, help="故事候选数（默认3）")
     ap.add_argument("--cast-candidates", type=int, default=2, help="人物阵容候选数（默认2）")
     ap.add_argument("--dry-run", action="store_true", help="用桩数据走通全流程，不调用 API")
@@ -50,7 +52,8 @@ def main():
 
     if args.imagine or args.imagine_only:
         from novel_workflow import imagine
-        imagine.run(state, story_n=args.story_candidates, cast_n=args.cast_candidates)
+        imagine.run(state, story_n=args.story_candidates, cast_n=args.cast_candidates,
+                    no_research=args.no_research)
         if args.imagine_only:
             return
 

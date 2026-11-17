@@ -1,5 +1,10 @@
 """imagine 模块：候选发散 + 人工挑选。
 
+前置规程：docs/imagine-research-design.md 是本模块的强制输入——
+生成候选前必须先按规程完成市场调研（R0~R3），候选须锚定机会缺口。
+助手会话执行时先读取该规程；本脚本的自由发散路径仅作为规程允许的
+显式降级通道（--no-research），产物强制标注"未经市场调研"。
+
 流程：
   1. 发散 N 个差异化故事候选 → 渲染 imagine/story_candidates.md → 终端选编号
   2. 针对选中故事发散 M 套人物阵容候选 → 渲染 imagine/cast_candidates.md → 终端选编号
@@ -28,16 +33,25 @@ def _pick(prompt_text, count):
         print(f"  请输入 1~{count} 之间的编号。")
 
 
-def _render_story_candidates(candidates):
-    lines = ["# 故事候选清单\n\n> 阅读后在终端输入编号选择。每个候选都是完整可发展的故事设定。\n"]
+UNRESEARCHED_BANNER = "> ⚠ 未经市场调研，以下候选无市场依据（显式降级通道 --no-research）\n"
+
+
+def _render_story_candidates(candidates, researched=False):
+    lines = ["# 故事候选清单\n"]
+    if not researched:
+        lines.append(UNRESEARCHED_BANNER)
+    lines.append("\n> 阅读后在终端输入编号选择。每个候选都是完整可发展的故事设定。\n")
     for i, c in enumerate(candidates, 1):
         lines.append(f"\n---\n\n# 候选 {i}：{c['story']['title']}\n\n**推荐语**：{c['pitch']}\n")
         lines.append(render_story(c["story"]))
     return "\n".join(lines)
 
 
-def _render_cast_candidates(candidates):
-    lines = ["# 人物阵容候选清单\n\n> 阅读后在终端输入编号选择。\n"]
+def _render_cast_candidates(candidates, researched=False):
+    lines = ["# 人物阵容候选清单\n"]
+    if not researched:
+        lines.append(UNRESEARCHED_BANNER)
+    lines.append("\n> 阅读后在终端输入编号选择。\n")
     for i, c in enumerate(candidates, 1):
         names = "、".join(ch["name"] + f"（{ch['role']}）" for ch in c["cast"]["characters"])
         lines.append(f"\n---\n\n# 阵容 {i}\n\n**推荐语**：{c['pitch']}\n**成员**：{names}\n")
@@ -45,8 +59,21 @@ def _render_cast_candidates(candidates):
     return "\n".join(lines)
 
 
-def run(state, story_n=STORY_CANDIDATES, cast_n=CAST_CANDIDATES):
+def run(state, story_n=STORY_CANDIDATES, cast_n=CAST_CANDIDATES, no_research=False):
+    """前置规程见 docs/imagine-research-design.md。
+    脚本路径当前仅实现规程的显式降级通道：no_research=True 才允许自由发散；
+    调研驱动路径（R0~R4）由助手会话按规程执行，或后续按规程实现 research.py。"""
     imag = state.data.setdefault("imagine", {})
+    research = imag.setdefault("research", {})
+    researched = research.get("confirmed_report", False)
+    if not researched and not no_research and not research.get("skipped"):
+        raise SystemExit(
+            "imagine 前置规程（docs/imagine-research-design.md）要求先完成市场调研。\n"
+            "请选择：1) 由助手会话按规程执行调研后再发散；2) 显式降级：加 --no-research（候选将标注未经调研）。")
+    if no_research and not research.get("skipped"):
+        research["skipped"] = True
+        research["reason"] = "用户显式选择 --no-research 降级"
+        state.save()
 
     # ---- 故事候选 ----
     if state.data["confirmed"]["story"]:
@@ -61,7 +88,7 @@ def run(state, story_n=STORY_CANDIDATES, cast_n=CAST_CANDIDATES):
             state.save()
         cands = imag["story_candidates"]
         path = state.imagine_dir / "story_candidates.md"
-        path.write_text(_render_story_candidates(cands), encoding="utf-8")
+        path.write_text(_render_story_candidates(cands, researched), encoding="utf-8")
         print(f"\n=== 故事候选已写入 {path} ===")
         for i, c in enumerate(cands, 1):
             print(f"  [{i}] {c['story']['title']} —— {c['pitch']}")
@@ -84,7 +111,7 @@ def run(state, story_n=STORY_CANDIDATES, cast_n=CAST_CANDIDATES):
             state.save()
         cands = imag["cast_candidates"]
         path = state.imagine_dir / "cast_candidates.md"
-        path.write_text(_render_cast_candidates(cands), encoding="utf-8")
+        path.write_text(_render_cast_candidates(cands, researched), encoding="utf-8")
         print(f"\n=== 人物阵容候选已写入 {path} ===")
         for i, c in enumerate(cands, 1):
             print(f"  [{i}] {c['pitch']}")

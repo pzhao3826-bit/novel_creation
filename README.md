@@ -5,8 +5,10 @@
 
 ## imagine 模块：我出候选，你来挑
 
+**前置规程**：`docs/imagine-research-design.md` 是 imagine 的强制输入——先调研市面同类型爆款（榜单/口碑/讨论/网文数据四路）、解析成功要素、找出机会缺口并经你确认，然后每个候选锚定缺口、附市场依据（对标作品/借用要素/创新点）。调研由助手会话按规程执行；脚本自由发散仅为显式降级通道，需加 `--no-research` 且候选强制标注「未经市场调研」。
+
 ```bash
-python3 run.py --name my_novel --spec "悬疑，海边小镇，别的你发挥" --imagine
+python3 run.py --name my_novel --spec "悬疑，海边小镇，别的你发挥" --imagine --no-research  # 显式降级
 ```
 
 - 发散 **3 个差异化故事候选**（premise/矛盾类型/结局落点实质不同，拒绝换皮），写入 `imagine/story_candidates.md`，终端列出一句话卖点，你输编号挑选
